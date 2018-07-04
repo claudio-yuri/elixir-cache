@@ -51,6 +51,9 @@ defmodule Cache do
     GenServer.call(@name, {:exist?, key})
   end
 
+  @doc """
+  Devuelve el listado completo de elementos en cache
+  """
   def get_stats do
     GenServer.call(@name, {:get_stats})
   end
