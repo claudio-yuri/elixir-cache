@@ -12,6 +12,7 @@ defmodule Cache.Server do
   Inicia el proceso para el caché.
   """
   def start_link(opts \\ []) do
+    # Process.flag(:trap_exit, true)
     GenServer.start_link(__MODULE__, :ok, opts ++ [name: CH])
   end
 
@@ -20,6 +21,18 @@ defmodule Cache.Server do
   """
   def write(key, value) do
     # GenServer.call realiza un llamado sincrónico
+    IO.puts "escribiendo #{key}"
+    GenServer.call(@name, {:write, key, value})
+    Node.list |> :rpc.multicall(Cache.Server, :replication_write, [key, value])
+    {:ok}
+  end
+
+  @doc """
+  Escribe un valor en el caché.
+  """
+  def replication_write(key, value) do
+    # GenServer.call realiza un llamado sincrónico
+    IO.puts "escribiendo #{key}"
     GenServer.call(@name, {:write, key, value})
   end
 
@@ -56,10 +69,6 @@ defmodule Cache.Server do
   """
   def get_stats do
     GenServer.call(@name, {:get_stats})
-  end
-
-  def exit do
-    Process.exit(self, :exit)
   end
 
   ## server callbacks
@@ -100,6 +109,11 @@ defmodule Cache.Server do
 
   def handle_cast({:clear}, _state) do
     {:noreply, %{}}
+  end
+
+  def handle_info({:EXIT, pid, _reason}, _state) do
+    IO.puts "received"
+    {:noreply}
   end
 
   ## private methods

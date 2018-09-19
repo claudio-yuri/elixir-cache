@@ -2,7 +2,9 @@ defmodule Cache do
     use Application
 
     def start(_, _) do
-        Cache.Server.start_link
+        # Cache.Server.start_link
+        # Process.flag(:trap_exit, true)
+        Cache.Supervisor.start_link(:ok)
     end
 
     @doc """
@@ -16,7 +18,7 @@ defmodule Cache do
     Busca un valor en el caché.
     """
     def read(key) do
-        IO.puts "pedido #{key}"
+        # IO.puts "pedido #{key}"
         Cache.Server.read(key)
     end
 
@@ -46,9 +48,5 @@ defmodule Cache do
     """
     def get_stats do
         Cache.Server.get_stats
-    end
-
-    def exit do
-        Cache.Server.exit
     end
 end
