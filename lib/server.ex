@@ -21,9 +21,8 @@ defmodule Cache.Server do
   """
   def write(key, value) do
     # GenServer.call realiza un llamado sincrónico
-    IO.puts "escribiendo #{key}"
     GenServer.call(@name, {:write, key, value})
-    Node.list |> :rpc.multicall(Cache.Server, :replication_write, [key, value])
+    broadcast_message_to_nodes(key, value)
     {:ok}
   end
 
@@ -111,7 +110,7 @@ defmodule Cache.Server do
     {:noreply, %{}}
   end
 
-  def handle_info({:EXIT, pid, _reason}, _state) do
+  def handle_info({:EXIT, _pid, _reason}, _state) do
     IO.puts "received"
     {:noreply}
   end
@@ -123,6 +122,41 @@ defmodule Cache.Server do
         Map.update!(old_state, key, fn(_) -> value end)
       false ->
         Map.put_new(old_state, key, value)
+    end
+  end
+
+  # Replica el mensaje a todos los nodos conectados
+  defp broadcast_message_to_nodes(key, value) do
+    # lo podría hacer así, pero prefiero la forma de pattern matching para logging
+    # Node.list |> :rpc.multicall(Cache.Server, :replication_write, [key, value])
+    IO.puts "Replicando mensaje en #{Enum.count(Node.list)} nodos"
+    Node.list |> broadcast_message(key, value)
+  end
+
+  # matchea con listas de uno o más elementos 
+  defp broadcast_message([currentnode | rest], key, value) do
+    broadcast_message_log(currentnode, rest)
+    :rpc.call(currentnode, Cache.Server, :replication_write, [key, value])
+    broadcast_message(rest, key, value)
+  end
+
+  defp broadcast_message([], _, _) do
+    IO.puts "Se replicó el mensaje en todos los nodos"
+  end
+
+  defp broadcast_message_log(currentnode, rest) do
+    IO.puts "Replicando mensaje en el nodo #{currentnode}. " <> broadcast_message_log_reaming_nodes(rest)
+  end
+
+  defp broadcast_message_log_reaming_nodes(rest) do
+    nodecount = Enum.count(rest)
+    case nodecount do
+      0 -> 
+        "Este es el último nodo."
+      1 -> 
+        "Falta #{nodecount} nodo..."
+      _ -> 
+        "Faltan #{nodecount} nodos..."
     end
   end
 end
