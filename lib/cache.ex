@@ -42,11 +42,20 @@ defmodule Cache do
     def exist?(key) do
         Cache.Server.exist?(key)
     end
-
+    
     @doc """
     Devuelve el listado completo de elementos en cache
     """
     def get_stats do
         Cache.Server.get_stats
+    end
+    
+    @doc """
+    Conecta al nodo actual con el nodo dado
+    La lista de nodos es compartida por transitivdad 
+    (si A se conecta a B y B a C, cuando A quiera listar sus nodos conectado va a ver [B,C])
+    """
+    def connect(node) do
+        Cache.Server.connect(node)
     end
 end

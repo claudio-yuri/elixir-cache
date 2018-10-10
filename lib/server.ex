@@ -70,6 +70,9 @@ defmodule Cache.Server do
     GenServer.call(@name, {:get_stats})
   end
 
+  def connect(node) do
+    GenServer.cast(@name, {:connect, node})
+  end
   ## server callbacks
   ##  en esta sección se ponen las funciones que actúan como callback a los mensajes envíados usando casts o calls
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
@@ -89,7 +92,6 @@ defmodule Cache.Server do
   recibe los mensajes de lectura en el caché
   """
   def handle_call({:read, key}, _from, state) do
-
     {:reply, Map.get(state, key), state} # Map.get/2 devuelve nil si no lo encuentra, cosa que, por diseño en este caso, considero aceptable
   end
 
@@ -108,6 +110,17 @@ defmodule Cache.Server do
 
   def handle_cast({:clear}, _state) do
     {:noreply, %{}}
+  end
+
+  def handle_cast({:connect, node}, state) do
+    Node.connect(node)
+    for {k, v} <- state do
+      broadcast_message_to_nodes(k, v)
+    end
+    {:noreply, state}
+    # connectarse al nodo dado
+    # hacer un broadcast con todas mis keys
+    # que los otros me manden sus keys (?)
   end
 
   def handle_info({:EXIT, _pid, _reason}, _state) do
