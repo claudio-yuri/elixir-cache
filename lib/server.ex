@@ -22,7 +22,6 @@ defmodule Cache.Server do
   def write(key, value) do
     # GenServer.call realiza un llamado sincrónico
     GenServer.call(@name, {:write, key, value})
-    broadcast_message_to_nodes(key, value)
     {:ok}
   end
 
@@ -32,7 +31,7 @@ defmodule Cache.Server do
   def replication_write(key, value) do
     # GenServer.call realiza un llamado sincrónico
     IO.puts "escribiendo #{key}"
-    GenServer.call(@name, {:write, key, value})
+    GenServer.call(@name, {:replication_write, key, value})
   end
 
   @doc """
@@ -72,7 +71,9 @@ defmodule Cache.Server do
 
   def connect(node) do
     GenServer.cast(@name, {:connect, node})
+    {:ok}
   end
+
   ## server callbacks
   ##  en esta sección se ponen las funciones que actúan como callback a los mensajes envíados usando casts o calls
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
@@ -84,6 +85,15 @@ defmodule Cache.Server do
   recibe los mensajes de escritura en el caché
   """
   def handle_call({:write, key, value}, _from, state) do
+    new_state = add_value(state, key, value) #actualizo o creo la clave en el cache
+    broadcast_message_to_nodes(key, value)
+    {:reply, :ok, new_state} # le respondo al cliente
+  end
+
+  @doc """
+  recibe los mensajes de escritura en el caché de una operación de replicación
+  """
+  def handle_call({:replication_write, key, value}, _from, state) do
     new_state = add_value(state, key, value) #actualizo o creo la clave en el cache
     {:reply, :ok, new_state} # le respondo al cliente
   end
@@ -113,19 +123,9 @@ defmodule Cache.Server do
   end
 
   def handle_cast({:connect, node}, state) do
+    # solo conecto al nodo deseado y dejo que Cache.Replicator se encargue de replicar
     Node.connect(node)
-    for {k, v} <- state do
-      broadcast_message_to_nodes(k, v)
-    end
     {:noreply, state}
-    # connectarse al nodo dado
-    # hacer un broadcast con todas mis keys
-    # que los otros me manden sus keys (?)
-  end
-
-  def handle_info({:EXIT, _pid, _reason}, _state) do
-    IO.puts "received"
-    {:noreply}
   end
 
   ## private methods
