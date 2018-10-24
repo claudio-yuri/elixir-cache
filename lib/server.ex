@@ -68,9 +68,11 @@ defmodule Cache.Server do
   def get_stats do
     GenServer.call(@name, {:get_stats})
   end
-
+  @doc """
+  Conecta al nodo elegido
+  """
   def connect(node) do
-    GenServer.cast(@name, {:connect, node})
+    GenServer.call(@name, {:connect, node})
     {:ok}
   end
 
@@ -122,10 +124,15 @@ defmodule Cache.Server do
     {:noreply, %{}}
   end
 
-  def handle_cast({:connect, node}, state) do
+  def handle_call({:connect, node}, _from, state) do
     # solo conecto al nodo deseado y dejo que Cache.Replicator se encargue de replicar
-    Node.connect(node)
-    {:noreply, state}
+    resp = Node.connect(node)
+    case resp do
+      true ->
+        {:reply, :ok, state}
+      false ->
+        {:reply, :notok, state}
+    end
   end
 
   ## private methods
