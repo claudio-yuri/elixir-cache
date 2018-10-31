@@ -80,7 +80,8 @@ defmodule Cache.Server do
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
   def init(:ok) do
     Cache.Logger.log(self(), "Cache server inciado")
-    connect_to_cluster()
+    #connect_to_cluster()
+    # esto es al pedo porque ya está conectado. hay que disparar el replicador de alguna manera
     {:ok, %{}}
   end
 
