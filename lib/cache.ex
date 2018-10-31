@@ -18,7 +18,6 @@ defmodule Cache do
     Busca un valor en el caché.
     """
     def read(key) do
-        # IO.puts "pedido #{key}"
         Cache.Server.read(key)
     end
 

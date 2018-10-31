@@ -12,7 +12,6 @@ defmodule Cache.Server do
   Inicia el proceso para el caché.
   """
   def start_link(opts \\ []) do
-    # Process.flag(:trap_exit, true)
     GenServer.start_link(__MODULE__, :ok, opts ++ [name: CH])
   end
 
@@ -30,7 +29,7 @@ defmodule Cache.Server do
   """
   def replication_write(key, value) do
     # GenServer.call realiza un llamado sincrónico
-    IO.puts "escribiendo #{key}"
+    Cache.Logger.log(self(), "Escribiendo #{key}")
     GenServer.call(@name, {:replication_write, key, value})
   end
 
@@ -80,6 +79,8 @@ defmodule Cache.Server do
   ##  en esta sección se ponen las funciones que actúan como callback a los mensajes envíados usando casts o calls
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
   def init(:ok) do
+    Cache.Logger.log(self(), "Cache server inciado")
+    connect_to_cluster()
     {:ok, %{}}
   end
 
@@ -119,11 +120,7 @@ defmodule Cache.Server do
   def handle_call({:get_stats}, _from, state) do
     {:reply, state, state}
   end
-
-  def handle_cast({:clear}, _state) do
-    {:noreply, %{}}
-  end
-
+  
   def handle_call({:connect, node}, _from, state) do
     # solo conecto al nodo deseado y dejo que Cache.Replicator se encargue de replicar
     resp = Node.connect(node)
@@ -133,6 +130,10 @@ defmodule Cache.Server do
       false ->
         {:reply, :notok, state}
     end
+  end
+  
+  def handle_cast({:clear}, _state) do
+    {:noreply, %{}}
   end
 
   ## private methods
@@ -149,7 +150,7 @@ defmodule Cache.Server do
   defp broadcast_message_to_nodes(key, value) do
     # lo podría hacer así, pero prefiero la forma de pattern matching para logging
     # Node.list |> :rpc.multicall(Cache.Server, :replication_write, [key, value])
-    IO.puts "Replicando mensaje en #{Enum.count(Node.list)} nodos"
+    Cache.Logger.log(self(), "Replicando mensaje en #{Enum.count(Node.list)} nodos")
     Node.list |> broadcast_message(key, value)
   end
 
@@ -161,11 +162,11 @@ defmodule Cache.Server do
   end
 
   defp broadcast_message([], _, _) do
-    IO.puts "Se replicó el mensaje en todos los nodos"
+    Cache.Logger.log(self(), "Se replicó el mensaje en todos los nodos")
   end
 
   defp broadcast_message_log(currentnode, rest) do
-    IO.puts "Replicando mensaje en el nodo #{currentnode}. " <> broadcast_message_log_reaming_nodes(rest)
+    Cache.Logger.log(self(), "Replicando mensaje en el nodo #{currentnode}. " <> broadcast_message_log_reaming_nodes(rest))
   end
 
   defp broadcast_message_log_reaming_nodes(rest) do
@@ -177,6 +178,20 @@ defmodule Cache.Server do
         "Falta #{nodecount} nodo..."
       _ -> 
         "Faltan #{nodecount} nodos..."
+    end
+  end
+
+  defp connect_to_cluster() do
+    len = length(Node.list)
+    IO.puts "len #{len}"
+    cond do
+      length(Node.list) >= 1 ->
+        [ first | _ ] = Node.list
+        IO.puts "el nodo #{first}"
+        Node.connect(first)
+        Cache.Logger.log(self(), "Conectado al cluster")
+      true ->
+        Cache.Logger.log(self(), "No hay otros nodos en el cluster")
     end
   end
 end
