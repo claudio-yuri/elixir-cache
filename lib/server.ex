@@ -29,7 +29,7 @@ defmodule Cache.Server do
   """
   def replication_write(key, value) do
     # GenServer.call realiza un llamado sincrónico
-    Cache.Logger.log(self(), "Escribiendo #{key}")
+    Cache.Logger.log(self(), "Replicando #{key}")
     GenServer.call(@name, {:replication_write, key, value})
   end
 
@@ -80,7 +80,11 @@ defmodule Cache.Server do
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
   def init(:ok) do
     Cache.Logger.log(self(), "Cache server inciado")
-    #connect_to_cluster()
+    # Esta función solo tiene efecto si el nodo ya estaba previamente conectado a al menos otro nodo
+    #   Esto se da en dos casos:
+    #     - que se haya conectado el nodo antes de iniciar la aplicación
+    #     - en caso que este proceso se haya reiniciado en el nodo actual
+    Cache.Replicator.reaplicate_from
     # esto es al pedo porque ya está conectado. hay que disparar el replicador de alguna manera
     {:ok, %{}}
   end
@@ -179,20 +183,6 @@ defmodule Cache.Server do
         "Falta #{nodecount} nodo..."
       _ -> 
         "Faltan #{nodecount} nodos..."
-    end
-  end
-
-  defp connect_to_cluster() do
-    len = length(Node.list)
-    IO.puts "len #{len}"
-    cond do
-      length(Node.list) >= 1 ->
-        [ first | _ ] = Node.list
-        IO.puts "el nodo #{first}"
-        Node.connect(first)
-        Cache.Logger.log(self(), "Conectado al cluster")
-      true ->
-        Cache.Logger.log(self(), "No hay otros nodos en el cluster")
     end
   end
 end

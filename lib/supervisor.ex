@@ -7,9 +7,9 @@ defmodule Cache.Supervisor do
 
     def init(:ok) do
         children = [
-            worker(Cache.Logger, []),
-            worker(Cache.Server, []),
-            worker(Cache.Replicator, [])
+            worker(Cache.Logger, []), #el orden del child spec importa!
+            worker(Cache.Replicator, []),
+            worker(Cache.Server, [])
         ]
         
         #strategy: :one_for_one hace que solo se reinicie el proceso que murió, one_for_all hace que se reinicien todos
