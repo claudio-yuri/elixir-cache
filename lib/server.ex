@@ -111,6 +111,7 @@ defmodule Cache.Server do
   """
   def handle_call({:write, key, value}, _from, state) do
     new_state = add_value(state, key, value) #actualizo o creo la clave en el cache
+    #FIXME: esto debería hacerlo Cache.Replicator
     broadcast_message_to_nodes(key, value)
     {:reply, :ok, new_state} # le respondo al cliente
   end

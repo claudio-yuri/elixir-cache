@@ -27,3 +27,6 @@ Podemos usar iex de la siguiente manera:
 > iex --sname nodo1 -S mix
 ```
 
+## Notas finales
+
+Esto es simplemente un experimento práctico. Cualquier comentario es bienvenido.
