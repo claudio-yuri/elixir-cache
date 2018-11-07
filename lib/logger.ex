@@ -1,4 +1,8 @@
 defmodule Cache.Logger do
+    @moduledoc """
+    Este proceso se encarga de loggear la información que los demás procesos necesiten
+    En esta implementación se elige como output la consola
+    """
     use GenServer
 
     @name CHL
@@ -7,6 +11,9 @@ defmodule Cache.Logger do
         GenServer.start_link(__MODULE__, :ok, opts ++ [name: CHL])
     end
 
+    @doc """
+    recibe el pid del proceso que origina el mensaje y un texto que se quiera mostrar
+    """
     def log(pid, msg) do
         GenServer.cast(@name, {:log, pid, msg})
     end
@@ -23,6 +30,7 @@ defmodule Cache.Logger do
 
     defp printline_withpid(pid, msg) do
         #esta es la forma de poder imprimir por pantalla el PID de un proceso
+        # a los pids, como son una estructura particula, no se les puede hacer directamente IO.puts pid
         IO.inspect(pid, label: msg <> ". PID: ")
     end
 end

@@ -1,4 +1,8 @@
 defmodule Cache do
+    @moduledoc """
+    Este es el punto de entrada de la aplicación
+    Cualquier nodo debería hablar con este proceso y no con los hijos
+    """
     use Application
 
     def start(_, _) do

@@ -1,18 +1,37 @@
 defmodule Cache.Server do
   @moduledoc """
-  Documentation for Cache.
+  Este proceso se encarga de mantener el estado de los datos que queremos almacenar
+  Es básicamente un wrapper del Map que ofrece Elixir.
+  Soporta las siguientes operaciones:
+    * write(key, value)
+    * read(key)
+    * delete(key)
+    * clear
+    * exist?(key)
+    * get_stats
+    * connect(node)
   """
   use GenServer
 
-  @name CH
+  @name CH # nombre del process
 
-  ## Client API
+  ## Client API ##################################################################################
   ##  en esta sección, como indica el nombre se pone todo lo que puede ver el cliente
+  ##  no es buena práctica mandar el mensaje directamente desde un proceso externo, por eso se expone una api
+  
   @doc """
   Inicia el proceso para el caché.
   """
   def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, :ok, opts ++ [name: CH])
+    # primero inicializo el estado y me guardo la respuesta porque es esto mismo lo que quiero devolverle al que me llamó
+    resp = GenServer.start_link(__MODULE__, :ok, opts ++ [name: CH])
+    # Esta función solo tiene efecto si el nodo ya estaba previamente conectado a al menos otro nodo
+    #   Esto se da en dos casos:
+    #     - que se haya conectado el nodo antes de iniciar la aplicación
+    #     - en caso que este proceso se haya reiniciado en el nodo actual
+    # y lo que hace básicamente es pedirle la info que tenga alguno de los nodos para traerla al actual
+    Cache.Replicator.reaplicate_from
+    resp
   end
 
   @doc """
@@ -72,20 +91,18 @@ defmodule Cache.Server do
   """
   def connect(node) do
     GenServer.call(@name, {:connect, node})
-    {:ok}
   end
 
-  ## server callbacks
+  ## server callbacks #########################################################################################################
   ##  en esta sección se ponen las funciones que actúan como callback a los mensajes envíados usando casts o calls
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
+  ## también se recomienda agrupar casts, calls e info juntos
+  
+  @doc """
+  Callback para inicializar el proceso
+  """
   def init(:ok) do
     Cache.Logger.log(self(), "Cache server inciado")
-    # Esta función solo tiene efecto si el nodo ya estaba previamente conectado a al menos otro nodo
-    #   Esto se da en dos casos:
-    #     - que se haya conectado el nodo antes de iniciar la aplicación
-    #     - en caso que este proceso se haya reiniciado en el nodo actual
-    Cache.Replicator.reaplicate_from
-    # esto es al pedo porque ya está conectado. hay que disparar el replicador de alguna manera
     {:ok, %{}}
   end
 
@@ -141,7 +158,11 @@ defmodule Cache.Server do
     {:noreply, %{}}
   end
 
-  ## private methods
+  ## private methods ########################################################################
+
+  @doc """
+  agrega el valor recibido al map
+  """
   defp add_value(old_state, key, value) do
     case Map.has_key?(old_state, key) do
       true ->
@@ -151,7 +172,9 @@ defmodule Cache.Server do
     end
   end
 
-  # Replica el mensaje a todos los nodos conectados
+  @doc """
+  Replica el mensaje a todos los nodos conectados
+  """
   defp broadcast_message_to_nodes(key, value) do
     # lo podría hacer así, pero prefiero la forma de pattern matching para logging
     # Node.list |> :rpc.multicall(Cache.Server, :replication_write, [key, value])
@@ -159,7 +182,9 @@ defmodule Cache.Server do
     Node.list |> broadcast_message(key, value)
   end
 
-  # matchea con listas de uno o más elementos 
+  @doc """
+  matchea con listas de uno o más elementos
+  """ 
   defp broadcast_message([currentnode | rest], key, value) do
     broadcast_message_log(currentnode, rest)
     :rpc.call(currentnode, Cache.Server, :replication_write, [key, value])
