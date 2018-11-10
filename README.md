@@ -1,6 +1,6 @@
-# pipi-elixir-cache
+# pipi-elixir-key-value-store
 
-La idea de este es hace un cache in-memory como excusa de aprender algo de Elixir.
+La idea de este es hace un key-value store in-memory como excusa de aprender algo de Elixir.
 
 ## Features
 
