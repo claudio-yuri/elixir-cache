@@ -111,8 +111,7 @@ defmodule Cache.Server do
   """
   def handle_call({:write, key, value}, _from, state) do
     new_state = add_value(state, key, value) #actualizo o creo la clave en el cache
-    #FIXME: esto debería hacerlo Cache.Replicator
-    broadcast_message_to_nodes(key, value)
+    Cache.Replicator.replicate_to_nodes(key, value)
     {:reply, :ok, new_state} # le respondo al cliente
   end
 
@@ -161,9 +160,7 @@ defmodule Cache.Server do
 
   ## private methods ########################################################################
 
-  @doc """
-  agrega el valor recibido al map
-  """
+  #agrega el valor recibido al map
   defp add_value(old_state, key, value) do
     case Map.has_key?(old_state, key) do
       true ->
@@ -173,42 +170,4 @@ defmodule Cache.Server do
     end
   end
 
-  @doc """
-  Replica el mensaje a todos los nodos conectados
-  """
-  defp broadcast_message_to_nodes(key, value) do
-    # lo podría hacer así, pero prefiero la forma de pattern matching para logging
-    # Node.list |> :rpc.multicall(Cache.Server, :replication_write, [key, value])
-    Cache.Logger.log(self(), "Replicando mensaje en #{Enum.count(Node.list)} nodos")
-    Node.list |> broadcast_message(key, value)
-  end
-
-  @doc """
-  matchea con listas de uno o más elementos
-  """ 
-  defp broadcast_message([currentnode | rest], key, value) do
-    broadcast_message_log(currentnode, rest)
-    :rpc.call(currentnode, Cache.Server, :replication_write, [key, value])
-    broadcast_message(rest, key, value)
-  end
-
-  defp broadcast_message([], _, _) do
-    Cache.Logger.log(self(), "Se replicó el mensaje en todos los nodos")
-  end
-
-  defp broadcast_message_log(currentnode, rest) do
-    Cache.Logger.log(self(), "Replicando mensaje en el nodo #{currentnode}. " <> broadcast_message_log_reaming_nodes(rest))
-  end
-
-  defp broadcast_message_log_reaming_nodes(rest) do
-    nodecount = Enum.count(rest)
-    case nodecount do
-      0 -> 
-        "Este es el último nodo."
-      1 -> 
-        "Falta #{nodecount} nodo..."
-      _ -> 
-        "Faltan #{nodecount} nodos..."
-    end
-  end
 end
