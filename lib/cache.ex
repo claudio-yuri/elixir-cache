@@ -7,7 +7,6 @@ defmodule Cache do
 
     def start(_, _) do
         # Cache.Server.start_link
-        # Process.flag(:trap_exit, true)
         Cache.Supervisor.start_link(:ok)
     end
 
