@@ -17,7 +17,7 @@ defmodule CacheTest do
     new_value = "new_value2"
     new_key = :key2
     Cache.write(new_key, new_value)
-    stats = Cache.get_stats
+    stats = Cache.get_stats()
     assert Map.has_key?(stats, new_key)
     assert Map.get(stats, new_key) == new_value
   end
@@ -42,8 +42,8 @@ defmodule CacheTest do
     new_value = "new_value5"
     new_key = :key5
     Cache.write(new_key, new_value)
-    Cache.clear
+    Cache.clear()
     refute Cache.exist?(new_key)
-    assert (Cache.get_stats |> Map.to_list |> length) == 0
+    assert Cache.get_stats() |> Map.to_list() |> length == 0
   end
 end

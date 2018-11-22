@@ -13,24 +13,26 @@ defmodule Cache.Server do
   """
   use GenServer
 
-  @name CH # nombre del process
+  # nombre del process
+  @name CH
 
   ## Client API ##################################################################################
   ##  en esta sección, como indica el nombre se pone todo lo que puede ver el cliente
   ##  no es buena práctica mandar el mensaje directamente desde un proceso externo, por eso se expone una api
-  
+
   @doc """
   Inicia el proceso para el caché.
   """
   def start_link(opts \\ []) do
     # primero inicializo el estado y me guardo la respuesta porque es esto mismo lo que quiero devolverle al que me llamó
     resp = GenServer.start_link(__MODULE__, :ok, opts ++ [name: CH])
+
     # Esta función solo tiene efecto si el nodo ya estaba previamente conectado a al menos otro nodo
     #   Esto se da en dos casos:
     #     - que se haya conectado el nodo antes de iniciar la aplicación
     #     - en caso que este proceso se haya reiniciado en el nodo actual
     # y lo que hace básicamente es pedirle la info que tenga alguno de los nodos para traerla al actual
-    Cache.Replicator.reaplicate_from
+    Cache.Replicator.reaplicate_from()
     resp
   end
 
@@ -86,6 +88,7 @@ defmodule Cache.Server do
   def get_stats do
     GenServer.call(@name, {:get_stats})
   end
+
   @doc """
   Conecta al nodo elegido
   """
@@ -97,7 +100,7 @@ defmodule Cache.Server do
   ##  en esta sección se ponen las funciones que actúan como callback a los mensajes envíados usando casts o calls
   ##  el orden es importante ya que podríamos tener condiciones inalcanzables
   ## también se recomienda agrupar casts, calls e info juntos
-  
+
   @doc """
   Callback para inicializar el proceso
   """
@@ -110,24 +113,29 @@ defmodule Cache.Server do
   recibe los mensajes de escritura en el caché
   """
   def handle_call({:write, key, value}, _from, state) do
-    new_state = add_value(state, key, value) #actualizo o creo la clave en el cache
+    # actualizo o creo la clave en el cache
+    new_state = add_value(state, key, value)
     Cache.Replicator.replicate_to_nodes(key, value)
-    {:reply, :ok, new_state} # le respondo al cliente
+    # le respondo al cliente
+    {:reply, :ok, new_state}
   end
 
   @doc """
   recibe los mensajes de escritura en el caché de una operación de replicación
   """
   def handle_call({:replication_write, key, value}, _from, state) do
-    new_state = add_value(state, key, value) #actualizo o creo la clave en el cache
-    {:reply, :ok, new_state} # le respondo al cliente
+    # actualizo o creo la clave en el cache
+    new_state = add_value(state, key, value)
+    # le respondo al cliente
+    {:reply, :ok, new_state}
   end
 
   @doc """
   recibe los mensajes de lectura en el caché
   """
   def handle_call({:read, key}, _from, state) do
-    {:reply, Map.get(state, key), state} # Map.get/2 devuelve nil si no lo encuentra, cosa que, por diseño en este caso, considero aceptable
+    # Map.get/2 devuelve nil si no lo encuentra, cosa que, por diseño en este caso, considero aceptable
+    {:reply, Map.get(state, key), state}
   end
 
   def handle_call({:delete, key}, _from, state) do
@@ -142,32 +150,34 @@ defmodule Cache.Server do
   def handle_call({:get_stats}, _from, state) do
     {:reply, state, state}
   end
-  
+
   def handle_call({:connect, node}, _from, state) do
     # solo conecto al nodo deseado y dejo que Cache.Replicator se encargue de replicar
     resp = Node.connect(node)
+
     case resp do
       true ->
         {:reply, :ok, state}
+
       false ->
         {:reply, :notok, state}
     end
   end
-  
+
   def handle_cast({:clear}, _state) do
     {:noreply, %{}}
   end
 
   ## private methods ########################################################################
 
-  #agrega el valor recibido al map
+  # agrega el valor recibido al map
   defp add_value(old_state, key, value) do
     case Map.has_key?(old_state, key) do
       true ->
-        Map.update!(old_state, key, fn(_) -> value end)
+        Map.update!(old_state, key, fn _ -> value end)
+
       false ->
         Map.put_new(old_state, key, value)
     end
   end
-
 end

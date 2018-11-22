@@ -15,7 +15,7 @@ defmodule Cache.MixProject do
   def application do
     [
       extra_applications: [:logger],
-              mod: {Cache, []}
+      mod: {Cache, []}
     ]
   end
 
